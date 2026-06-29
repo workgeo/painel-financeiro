@@ -95,6 +95,7 @@
         .pl-line { font-size: 10px; font-weight: 700; margin-top: 3px; text-align: right; }
         .sparkline { width: 100%; height: 25px; margin-top: 8px; opacity: 0.85; }
         .sparkline-empty { height: 25px; margin-top: 8px; font-size: 9px; color: var(--text-secondary); display: flex; align-items: center; }
+        .api-warning { margin: 0 20px 8px; padding: 10px 14px; border-radius: 12px; background: var(--down-bg); color: var(--down-color); font-size: 12px; font-weight: 600; line-height: 1.4; }
         .news-ticker {
             position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
             background: rgba(29, 29, 31, 0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(255,255,255,0.1);
@@ -164,6 +165,7 @@
                 <div class="icon-btn" onclick="fetchData()"><i class="fa-solid fa-rotate-right"></i></div>
             </div>
         </header>
+        <div id="api-warning" class="api-warning hidden"></div>
         <div class="grid" id="cards-container"></div>
         <div class="news-ticker"><div class="ticker-wrap"><div class="ticker-move" id="news-content"></div></div></div>
     </div>
@@ -427,31 +429,64 @@
                 if (Array.isArray(btcH) && btcH.length) historyCache['BTC'] = btcH.map(d => parseFloat(d.bid)).reverse();
             } catch (e) { console.error("Erro histórico moedas:", e); }
 
-            // 2. Ações + índice — UMA chamada multi-ticker já trazendo histórico de 1 mês
-            try {
-                const tickers = assets
-                    .filter(a => a.type === 'stock' || a.type === 'index')
-                    .map(a => a.id === 'IBOV' ? '^BVSP' : a.id)
-                    .join(',');
-                const url = `https://brapi.dev/api/quote/${encodeURIComponent(tickers)}?range=1mo&interval=1d&token=${getToken()}`;
+            // 2. Ações + índice (brapi).
+            //    BUG corrigido: antes a lista de tickers passava por encodeURIComponent,
+            //    que troca "," por "%2C" e quebra a busca de vários ativos de uma vez.
+            //    Agora as vírgulas são literais (só o "^" do índice é escapado).
+            let apiError = '';
+            const stockIds = assets.filter(a => a.type === 'stock').map(a => a.id);
+            const allTickers = [...stockIds, '^BVSP'];
+
+            async function brapiFetch(list, withHistory) {
+                const path = list.join(',').replace(/\^/g, '%5E');
+                const hist = withHistory ? '&range=1mo&interval=1d' : '';
+                const url = `https://brapi.dev/api/quote/${path}?token=${getToken()}${hist}`;
                 const r = await fetch(url);
-                if (r.ok) {
-                    const dados = await r.json();
-                    if (dados.results) {
-                        dados.results.forEach(res => {
-                            const id = (res.symbol === '^BVSP') ? 'IBOV' : res.symbol;
-                            stockMap[id] = res;
-                            if (Array.isArray(res.historicalDataPrice) && res.historicalDataPrice.length) {
-                                historyCache[id] = res.historicalDataPrice.map(p => p.close).filter(v => v != null);
-                            }
-                        });
-                    }
-                } else {
-                    console.error("brapi respondeu", r.status);
+                let body = null;
+                try { body = await r.json(); } catch (e) {}
+                if (!r.ok || (body && body.error)) {
+                    apiError = (body && body.message) ? body.message : ('HTTP ' + r.status);
+                    return null;
                 }
-            } catch (e) { console.error("Erro ações:", e); }
+                return (body && body.results) ? body.results : null;
+            }
+
+            try {
+                let results = await brapiFetch(allTickers, true);            // cotação + histórico
+                if (!results) results = await brapiFetch(allTickers, false); // só cotação
+                if (!results) {                                              // último recurso: 1 a 1
+                    results = [];
+                    for (const t of allTickers) {
+                        const one = await brapiFetch([t], false);
+                        if (one) results.push(...one);
+                    }
+                }
+                if (results && results.length) {
+                    apiError = '';
+                    results.forEach(res => {
+                        const id = (res.symbol === '^BVSP') ? 'IBOV' : res.symbol;
+                        stockMap[id] = res;
+                        if (Array.isArray(res.historicalDataPrice) && res.historicalDataPrice.length) {
+                            historyCache[id] = res.historicalDataPrice.map(p => p.close).filter(v => v != null);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Erro ações:", e);
+                apiError = 'sem conexão com a brapi';
+            }
 
             renderCards(coinsData, stockMap);
+
+            // Diagnóstico visível quando a brapi falha
+            const warn = document.getElementById('api-warning');
+            if (apiError) {
+                warn.classList.remove('hidden');
+                warn.innerText = '⚠️ Ações via brapi falharam (' + apiError + '). Gere um token gratuito em brapi.dev e cole em Carteira › Ajustes.';
+            } else {
+                warn.classList.add('hidden');
+                warn.innerText = '';
+            }
 
             const now = new Date();
             updateLabel.innerText = "Atualizado às " + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -657,7 +692,7 @@
             const ticker = asset.id === 'IBOV' ? '^BVSP' : asset.id;
             const intervalMap = { '1d': '15m', '5d': '60m', '1mo': '1d', '1y': '1d' };
             const interval = intervalMap[range] || '1d';
-            const url = `https://brapi.dev/api/quote/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&token=${getToken()}`;
+            const url = `https://brapi.dev/api/quote/${ticker.replace(/\^/g, '%5E')}?range=${range}&interval=${interval}&token=${getToken()}`;
             const r = await fetch(url);
             if (!r.ok) return null;
             const dados = await r.json();

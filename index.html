@@ -7,16 +7,17 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Finanças">
     <title>Painel Vanderly</title>
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <style>
         :root {
             --bg-color: #F2F2F7; --card-bg: #FFFFFF; --text-primary: #000000;
             --text-secondary: #8E8E93; --accent-color: #007AFF; --up-color: #34C759;
             --up-bg: rgba(52, 199, 89, 0.15); --down-color: #FF3B30;
             --down-bg: rgba(255, 59, 48, 0.15); --shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --border-soft: rgba(128,128,128,0.12);
         }
         @media (prefers-color-scheme: dark) {
             :root {
@@ -39,7 +40,7 @@
         .lock-input {
             width: 100%; padding: 15px; margin: 20px 0; border-radius: 12px;
             border: 1px solid var(--text-secondary); font-size: 18px; text-align: center;
-            background: var(--card-bg); color: var(--text-primary); -webkit-appearance: none;
+            background: var(--card-bg); color: var(--text-primary); -webkit-appearance: none; box-sizing: border-box;
         }
         .lock-btn {
             background-color: var(--accent-color); color: white; border: none;
@@ -59,7 +60,8 @@
         }
         .user-info h1 { font-size: 20px; font-weight: 800; margin: 0; line-height: 1.1; }
         .user-info p { font-size: 12px; color: var(--text-secondary); margin: 0; text-transform: uppercase; }
-        .wallet-total { font-size: 13px; font-weight: 600; color: var(--up-color); margin-top: 2px; }
+        .wallet-total { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-top: 2px; }
+        .wallet-pl { font-size: 12px; font-weight: 600; margin-top: 1px; }
         .header-actions { display: flex; gap: 15px; }
         .icon-btn { font-size: 20px; color: var(--accent-color); cursor: pointer; padding: 5px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px 20px; }
@@ -80,10 +82,12 @@
         .name { font-size: 10px; color: var(--text-secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .holding-info {
             font-size: 10px; color: var(--text-secondary); margin-top: 6px;
-            padding-top: 6px; border-top: 1px solid rgba(128,128,128,0.1); display: flex; justify-content: space-between;
+            padding-top: 6px; border-top: 1px solid var(--border-soft); display: flex; justify-content: space-between;
         }
         .holding-value { font-weight: 700; color: var(--text-primary); }
-        .sparkline { width: 100%; height: 25px; margin-top: 8px; opacity: 0.7; }
+        .pl-line { font-size: 10px; font-weight: 700; margin-top: 3px; text-align: right; }
+        .sparkline { width: 100%; height: 25px; margin-top: 8px; opacity: 0.85; }
+        .sparkline-empty { height: 25px; margin-top: 8px; font-size: 9px; color: var(--text-secondary); display: flex; align-items: center; }
         .news-ticker {
             position: fixed; bottom: 0; left: 0; width: 100%; height: 60px;
             background: rgba(29, 29, 31, 0.95); backdrop-filter: blur(20px); border-top: 0.5px solid rgba(255,255,255,0.1);
@@ -103,17 +107,26 @@
         .modal-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; }
         .modal-title { font-size: 22px; font-weight: 800; }
         .portfolio-list { flex: 1; overflow-y: auto; padding: 0 20px 40px 20px; }
-        .portfolio-item { background: var(--card-bg); padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-        .p-input { width: 100px; padding: 8px; border-radius: 8px; border: 1px solid var(--text-secondary); font-size: 16px; background: var(--bg-color); color: var(--text-primary); text-align: right; }
+        .settings-box { background: var(--card-bg); border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
+        .settings-box h3 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; }
+        .settings-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .settings-row label { font-size: 12px; color: var(--text-secondary); }
+        .settings-input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-soft); font-size: 14px; background: var(--bg-color); color: var(--text-primary); box-sizing: border-box; }
+        .portfolio-item { background: var(--card-bg); padding: 14px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); }
+        .portfolio-item .p-fields { display: flex; gap: 8px; }
+        .p-field { display: flex; flex-direction: column; align-items: flex-end; }
+        .p-field span { font-size: 9px; color: var(--text-secondary); margin-bottom: 2px; }
+        .p-input { width: 78px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-soft); font-size: 15px; background: var(--bg-color); color: var(--text-primary); text-align: right; box-sizing: border-box; }
         .detail-header { padding: 20px; display: flex; align-items: center; justify-content: space-between; }
         .close-btn { background: rgba(128,128,128,0.2); border: none; width: 32px; height: 32px; border-radius: 50%; color: var(--text-primary); font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .detail-info { text-align: center; }
         .detail-price { font-size: 32px; font-weight: 800; margin: 5px 0; }
         .detail-ticker { color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
         .chart-controls { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; padding: 0 20px; }
-        .period-btn { background: var(--card-bg); border: 1px solid rgba(128,128,128,0.2); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--text-primary); transition: all 0.2s; }
+        .period-btn { background: var(--card-bg); border: 1px solid var(--border-soft); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; color: var(--text-primary); transition: all 0.2s; }
         .period-btn.active { background: var(--accent-color); color: white; border-color: var(--accent-color); }
         .chart-container { flex: 1; padding: 10px; position: relative; background: var(--card-bg); border-radius: 24px 24px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.05); margin-top: 10px; }
+        #chart-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-secondary); font-size: 13px; text-align: center; width: 80%; }
     </style>
 </head>
 <body>
@@ -135,6 +148,7 @@
                 <div class="user-info">
                     <h1>Vanderly</h1>
                     <div class="wallet-total" id="grand-total">R$ 0,00</div>
+                    <div class="wallet-pl" id="grand-pl"></div>
                     <p id="last-update">Atualizando...</p>
                 </div>
             </div>
@@ -150,7 +164,7 @@
     <div id="portfolio-modal">
         <div class="modal-header">
             <button class="close-btn" style="width:auto; padding:0 15px; border-radius:15px;" onclick="closePortfolio()">Voltar</button>
-            <div class="modal-title">Minha Carteira</div>
+            <div class="modal-title">Carteira</div>
             <button class="close-btn" style="color: var(--accent-color); background: transparent; font-weight: bold; width: auto;" onclick="savePortfolio()">Salvar</button>
         </div>
         <div class="portfolio-list" id="portfolio-inputs"></div>
@@ -170,29 +184,50 @@
             <div id="detail-change" style="font-weight: 600; font-size: 16px;">0.00%</div>
         </div>
         <div class="chart-controls">
-            <button class="period-btn active" onclick="changePeriod('1d')">1D</button>
-            <button class="period-btn" onclick="changePeriod('5d')">5D</button>
-            <button class="period-btn" onclick="changePeriod('1mo')">1M</button>
-            <button class="period-btn" onclick="changePeriod('1y')">1A</button>
+            <button class="period-btn active" data-period="1d" onclick="changePeriod(this,'1d')">1D</button>
+            <button class="period-btn" data-period="5d" onclick="changePeriod(this,'5d')">5D</button>
+            <button class="period-btn" data-period="1mo" onclick="changePeriod(this,'1mo')">1M</button>
+            <button class="period-btn" data-period="1y" onclick="changePeriod(this,'1y')">1A</button>
         </div>
         <div class="chart-container">
             <canvas id="assetChart"></canvas>
-            <div id="chart-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none;">Carregando...</div>
+            <div id="chart-loading">Carregando...</div>
         </div>
     </div>
 
   <script>
-        // --- CONFIGURAÇÃO ---
-        const MY_PASSWORD = '1234'; 
-        const brapiToken = '4cC5ecuq416RSfKLHm3aRX'; 
+        /* ===================================================================
+           CONFIGURAÇÃO
+           -------------------------------------------------------------------
+           SENHA: não fica mais em texto puro. Guardamos apenas o hash SHA-256.
+           O hash abaixo corresponde à senha padrão "1234". Você pode trocar a
+           senha dentro do app (Carteira > Ajustes) sem editar este arquivo.
+
+           TOKEN BRAPI: o ideal seria mantê-lo num backend (a própria brapi
+           recomenda não expor no frontend). Como este app é single-file, o
+           token fica configurável em Ajustes e guardado localmente no aparelho.
+           O valor abaixo é só um fallback inicial.
+        =================================================================== */
+        const DEFAULT_PWD_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4'; // "1234"
+        const DEFAULT_BRAPI_TOKEN = '4cC5ecuq416RSfKLHm3aRX';
+        const LOGIN_VALIDITY_DAYS = 7;
+
+        // Armazenamento resiliente: usa localStorage quando disponível,
+        // cai para memória se estiver bloqueado (ex.: preview/sandbox).
+        const memStore = {};
+        const store = {
+            get(k) { try { return localStorage.getItem(k); } catch (e) { return (k in memStore) ? memStore[k] : null; } },
+            set(k, v) { try { localStorage.setItem(k, v); } catch (e) { memStore[k] = v; } },
+            del(k) { try { localStorage.removeItem(k); } catch (e) { delete memStore[k]; } }
+        };
 
         const assets = [
             { id: 'USD', type: 'currency', name: 'Dólar Comercial' },
-            { id: 'BTC', type: 'crypto', name: 'Bitcoin' }, 
+            { id: 'BTC', type: 'crypto', name: 'Bitcoin' },
             { id: 'IBOV', type: 'index', name: 'Ibovespa' },
             { id: 'BBAS3', type: 'stock', name: 'Banco do Brasil' },
             { id: 'BBDC3', type: 'stock', name: 'Bradesco ON' },
-            { id: 'JBSS32', type: 'stock', name: 'JBS N.V. (BDR)' }, 
+            { id: 'JBSS3', type: 'stock', name: 'JBS S.A.' },
             { id: 'SBSP3', type: 'stock', name: 'Sabesp' },
             { id: 'WEGE3', type: 'stock', name: 'WEG S.A.' }
         ];
@@ -205,38 +240,86 @@
         ];
 
         let currentDetailAsset = null;
+        let currentDetailData = null;
         let myChart = null;
-        let userQuantities = {}; 
+        let portfolio = {};          // { id: { qty, avg } }  (avg em R$)
+        let priceCache = {};         // { id: priceBRL }
+        const historyCache = {};     // { id: [closes...] } para sparkline (período 1M)
 
-        function checkPassword() {
-            if(document.getElementById('user-password').value === MY_PASSWORD) {
+        function getToken() { return store.get('brapi_token') || DEFAULT_BRAPI_TOKEN; }
+        function getPwdHash() { return store.get('pwd_hash') || DEFAULT_PWD_HASH; }
+
+        async function sha256(text) {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function checkPassword() {
+            const val = document.getElementById('user-password').value;
+            const hash = await sha256(val);
+            if (hash === getPwdHash()) {
+                const expires = Date.now() + LOGIN_VALIDITY_DAYS * 86400000;
+                store.set('login_expires', String(expires));
                 unlockApp();
-                localStorage.setItem('is_logged_in', 'true');
             } else {
                 document.getElementById('error-msg').style.display = 'block';
             }
         }
+
         function unlockApp() {
             document.getElementById('lock-screen').classList.add('hidden');
             document.getElementById('app-content').classList.remove('hidden');
-            loadQuantities(); 
+            loadPortfolio();
             initApp();
         }
-        window.onload = function() {
-            if(localStorage.getItem('is_logged_in') === 'true') unlockApp();
-        }
 
-        function loadQuantities() {
-            const saved = localStorage.getItem('user_portfolio');
-            if (saved) userQuantities = JSON.parse(saved);
+        window.onload = function () {
+            const exp = parseInt(store.get('login_expires') || '0', 10);
+            if (exp && Date.now() < exp) unlockApp();
+            document.getElementById('user-password').addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') checkPassword();
+            });
+        };
+
+        // Migração: formato antigo era { id: numeroQtd }. Novo: { id: {qty, avg} }.
+        function loadPortfolio() {
+            const saved = store.get('user_portfolio');
+            portfolio = {};
+            if (!saved) return;
+            try {
+                const data = JSON.parse(saved);
+                Object.keys(data).forEach(id => {
+                    const v = data[id];
+                    if (typeof v === 'number') portfolio[id] = { qty: v, avg: 0 };
+                    else if (v && typeof v === 'object') portfolio[id] = { qty: v.qty || 0, avg: v.avg || 0 };
+                });
+            } catch (e) { console.error('Carteira inválida:', e); }
         }
 
         function openPortfolio() {
             const list = document.getElementById('portfolio-inputs');
             list.innerHTML = '';
+
+            // Caixa de ajustes (token + troca de senha)
+            const settings = document.createElement('div');
+            settings.className = 'settings-box';
+            settings.innerHTML = `
+                <h3>Ajustes</h3>
+                <div class="settings-row">
+                    <label>Token brapi (opcional — fica salvo só neste aparelho)</label>
+                    <input type="text" class="settings-input" id="cfg-token" placeholder="Deixe vazio p/ usar o padrão" value="${store.get('brapi_token') || ''}">
+                </div>
+                <div class="settings-row">
+                    <label>Nova senha (deixe vazio para manter a atual)</label>
+                    <input type="password" class="settings-input" id="cfg-pwd" placeholder="••••" inputmode="numeric">
+                </div>
+            `;
+            list.appendChild(settings);
+
             assets.forEach(asset => {
                 if (asset.id === 'IBOV') return;
-                const qty = userQuantities[asset.id] || 0;
+                const p = portfolio[asset.id] || { qty: 0, avg: 0 };
+                const moeda = (asset.id === 'BTC') ? 'PM R$' : 'PM R$';
                 const item = document.createElement('div');
                 item.className = 'portfolio-item';
                 item.innerHTML = `
@@ -244,7 +327,16 @@
                         <div style="font-weight:700;">${asset.id}</div>
                         <div style="font-size:12px; color:var(--text-secondary);">${asset.name}</div>
                     </div>
-                    <input type="number" class="p-input" id="qty-${asset.id}" value="${qty}" step="any" placeholder="0">
+                    <div class="p-fields">
+                        <div class="p-field">
+                            <span>QTD</span>
+                            <input type="number" class="p-input" id="qty-${asset.id}" value="${p.qty || ''}" step="any" placeholder="0">
+                        </div>
+                        <div class="p-field">
+                            <span>${moeda}</span>
+                            <input type="number" class="p-input" id="avg-${asset.id}" value="${p.avg || ''}" step="any" placeholder="0,00">
+                        </div>
+                    </div>
                 `;
                 list.appendChild(item);
             });
@@ -253,26 +345,42 @@
 
         function closePortfolio() { document.getElementById('portfolio-modal').classList.remove('active'); }
 
-        function savePortfolio() {
+        async function savePortfolio() {
+            // Token
+            const tokenInput = document.getElementById('cfg-token');
+            if (tokenInput) {
+                const t = tokenInput.value.trim();
+                if (t) store.set('brapi_token', t); else store.del('brapi_token');
+            }
+            // Senha
+            const pwdInput = document.getElementById('cfg-pwd');
+            if (pwdInput && pwdInput.value.trim()) {
+                store.set('pwd_hash', await sha256(pwdInput.value.trim()));
+            }
+            // Carteira
             assets.forEach(asset => {
                 if (asset.id === 'IBOV') return;
-                const input = document.getElementById(`qty-${asset.id}`);
-                if (input) {
-                    const val = parseFloat(input.value);
-                    if (!isNaN(val) && val > 0) userQuantities[asset.id] = val;
-                    else delete userQuantities[asset.id]; 
+                const qEl = document.getElementById(`qty-${asset.id}`);
+                const aEl = document.getElementById(`avg-${asset.id}`);
+                if (!qEl) return;
+                const qty = parseFloat(qEl.value);
+                const avg = parseFloat(aEl.value);
+                if (!isNaN(qty) && qty > 0) {
+                    portfolio[asset.id] = { qty: qty, avg: (!isNaN(avg) && avg > 0) ? avg : 0 };
+                } else {
+                    delete portfolio[asset.id];
                 }
             });
-            localStorage.setItem('user_portfolio', JSON.stringify(userQuantities));
+            store.set('user_portfolio', JSON.stringify(portfolio));
             closePortfolio();
-            fetchData(); 
+            fetchData();
         }
 
         function initApp() {
             renderSkeleton();
             renderNews();
             fetchData();
-            setInterval(fetchData, 300000); // Atualiza a cada 5 minutos
+            setInterval(fetchData, 300000); // 5 min (1 req multi-ticker por ciclo)
         }
 
         function renderSkeleton() {
@@ -285,119 +393,173 @@
             const newsContainer = document.getElementById('news-content');
             let html = '';
             news.forEach(n => { html += `<div class="ticker-item"><span class="ticker-source">${n.source}:</span> ${n.title}</div>`; });
-            newsContainer.innerHTML = html + html + html + html; 
+            newsContainer.innerHTML = html + html + html + html;
         }
 
+        // ---------- FETCH ----------
         async function fetchData() {
-            const updateLabel = document.getElementById('last-update'); 
+            const updateLabel = document.getElementById('last-update');
             updateLabel.innerText = "Atualizando...";
-            
+
             let coinsData = null;
-            let stockMap = {};
+            const stockMap = {};
 
-            // 1. AwesomeAPI (Dólar / Bitcoin)
+            // 1. Moedas/cripto — cotação atual (AwesomeAPI)
             try {
-                const coinsResponse = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL,BTC-BRL,BTC-USD');
-                if (coinsResponse.ok) coinsData = await coinsResponse.json();
-            } catch (error) { console.error("Erro moedas:", error); }
+                const r = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL,BTC-BRL,BTC-USD');
+                if (r.ok) coinsData = await r.json();
+            } catch (e) { console.error("Erro moedas:", e); }
 
-            // 2. Brapi (Ações) - CORRIGIDO: Buscando um por um para evitar que a falha de um quebre os outros
+            // 1b. Histórico diário p/ sparkline das moedas (30 dias)
             try {
-                const acoes = assets.filter(a => a.type === 'stock' || a.type === 'index');
-                
-                await Promise.all(acoes.map(async (asset) => {
-                    let tickerParaBusca = asset.id === 'IBOV' ? '^BVSP' : asset.id;
-                    let url = `https://brapi.dev/api/quote/${tickerParaBusca}?token=${brapiToken}`;
-                    
-                    try {
-                        const resposta = await fetch(url);
-                        if (resposta.ok) {
-                            const dados = await resposta.json();
-                            if(dados.results && dados.results.length > 0) {
-                                stockMap[asset.id] = dados.results[0];
+                const [usdH, btcH] = await Promise.all([
+                    fetch('https://economia.awesomeapi.com.br/json/daily/USD-BRL/30').then(r => r.ok ? r.json() : []),
+                    fetch('https://economia.awesomeapi.com.br/json/daily/BTC-USD/30').then(r => r.ok ? r.json() : [])
+                ]);
+                if (Array.isArray(usdH) && usdH.length) historyCache['USD'] = usdH.map(d => parseFloat(d.bid)).reverse();
+                if (Array.isArray(btcH) && btcH.length) historyCache['BTC'] = btcH.map(d => parseFloat(d.bid)).reverse();
+            } catch (e) { console.error("Erro histórico moedas:", e); }
+
+            // 2. Ações + índice — UMA chamada multi-ticker já trazendo histórico de 1 mês
+            try {
+                const tickers = assets
+                    .filter(a => a.type === 'stock' || a.type === 'index')
+                    .map(a => a.id === 'IBOV' ? '^BVSP' : a.id)
+                    .join(',');
+                const url = `https://brapi.dev/api/quote/${encodeURIComponent(tickers)}?range=1mo&interval=1d&token=${getToken()}`;
+                const r = await fetch(url);
+                if (r.ok) {
+                    const dados = await r.json();
+                    if (dados.results) {
+                        dados.results.forEach(res => {
+                            const id = (res.symbol === '^BVSP') ? 'IBOV' : res.symbol;
+                            stockMap[id] = res;
+                            if (Array.isArray(res.historicalDataPrice) && res.historicalDataPrice.length) {
+                                historyCache[id] = res.historicalDataPrice.map(p => p.close).filter(v => v != null);
                             }
-                        }
-                    } catch(e) {
-                        console.error("Falha ao baixar o ticker: " + tickerParaBusca);
+                        });
                     }
-                }));
-            } catch (error) { console.error("Erro ações:", error); }
+                } else {
+                    console.error("brapi respondeu", r.status);
+                }
+            } catch (e) { console.error("Erro ações:", e); }
 
-            // 3. Renderiza Interface
+            renderCards(coinsData, stockMap);
+
+            const now = new Date();
+            updateLabel.innerText = "Atualizado às " + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function renderCards(coinsData, stockMap) {
             const container = document.getElementById('cards-container');
             container.innerHTML = '';
-            let grandTotal = 0; 
+            priceCache = {};
+
+            let totalAtual = 0, totalCusto = 0;
 
             assets.forEach(asset => {
                 let data = null;
-                let priceBRL = 0; 
+                let priceBRL = 0;
 
                 if (coinsData) {
                     if (asset.id === 'USD' && coinsData.USDBRL) {
                         priceBRL = parseFloat(coinsData.USDBRL.bid);
                         data = { price: priceBRL, change: parseFloat(coinsData.USDBRL.pctChange), symbol: 'R$' };
                     } else if (asset.id === 'BTC' && coinsData.BTCUSD && coinsData.BTCBRL) {
-                        priceBRL = parseFloat(coinsData.BTCBRL.bid); 
-                        const valUsd = parseFloat(coinsData.BTCUSD.bid).toLocaleString('en-US', {style:'currency', currency:'USD', minimumFractionDigits:0});
-                        const valBrl = priceBRL.toLocaleString('pt-BR', {style:'currency', currency:'BRL', minimumFractionDigits:0});
-                        data = { 
+                        priceBRL = parseFloat(coinsData.BTCBRL.bid);
+                        const valUsd = parseFloat(coinsData.BTCUSD.bid).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+                        const valBrl = priceBRL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 });
+                        data = {
                             displayValue: `<span style="font-size: 0.9em">${valUsd}</span> <span class="price-secondary">/ ${valBrl}</span>`,
-                            change: parseFloat(coinsData.BTCUSD.pctChange), symbol: '', price: parseFloat(coinsData.BTCUSD.bid) 
+                            change: parseFloat(coinsData.BTCUSD.pctChange), symbol: '', price: parseFloat(coinsData.BTCUSD.bid)
                         };
                     }
                 }
 
                 if (asset.type === 'stock' || asset.type === 'index') {
                     const s = stockMap[asset.id];
-                    if (s) {
+                    if (s && s.regularMarketPrice != null) {
                         priceBRL = s.regularMarketPrice;
-                        data = { price: priceBRL, change: s.regularMarketChangePercent, symbol: 'R$' };
+                        data = { price: priceBRL, change: s.regularMarketChangePercent || 0, symbol: 'R$' };
                     }
                 }
-                
-                const qty = userQuantities[asset.id] || 0;
-                const totalValue = qty * priceBRL;
-                if (asset.id !== 'IBOV' && data) grandTotal += totalValue;
+
+                priceCache[asset.id] = priceBRL;
+
+                const p = portfolio[asset.id] || { qty: 0, avg: 0 };
+                const valor = p.qty * priceBRL;
+                const custo = p.qty * p.avg;
+                if (asset.id !== 'IBOV' && data && p.qty > 0) {
+                    totalAtual += valor;
+                    if (p.avg > 0) totalCusto += custo;
+                    else totalCusto += valor; // sem PM, não conta como ganho/perda
+                }
 
                 const cardDiv = document.createElement('div');
-                cardDiv.innerHTML = createCardHTML(asset, data, false, qty, totalValue);
-                if(data) cardDiv.firstElementChild.onclick = () => openDetail(asset, data);
+                cardDiv.innerHTML = createCardHTML(asset, data, false, p, valor);
+                if (data) cardDiv.firstElementChild.onclick = () => openDetail(asset, data);
                 container.appendChild(cardDiv);
             });
 
-            document.getElementById('grand-total').innerText = grandTotal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-            const now = new Date();
-            updateLabel.innerText = "Atualizado às " + now.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            // Totais
+            document.getElementById('grand-total').innerText = totalAtual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const plEl = document.getElementById('grand-pl');
+            const lucro = totalAtual - totalCusto;
+            if (totalCusto > 0 && Math.abs(lucro) > 0.005) {
+                const pct = (lucro / totalCusto) * 100;
+                const up = lucro >= 0;
+                plEl.style.color = up ? 'var(--up-color)' : 'var(--down-color)';
+                plEl.innerText = `${up ? '+' : ''}${lucro.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${up ? '+' : ''}${pct.toFixed(2)}%)`;
+            } else {
+                plEl.innerText = '';
+            }
         }
 
-        function createCardHTML(asset, data, loading = false, qty = 0, totalValue = 0) {
+        function buildSparkline(id, isUp) {
+            const series = historyCache[id];
+            if (!series || series.length < 2) {
+                return `<div class="sparkline-empty">Histórico indisponível</div>`;
+            }
+            const color = isUp ? '#34C759' : '#FF3B30';
+            const min = Math.min(...series), max = Math.max(...series);
+            const range = (max - min) || 1;
+            const n = series.length;
+            let path = '';
+            series.forEach((v, i) => {
+                const x = (i / (n - 1)) * 100;
+                const y = 28 - ((v - min) / range) * 26; // margem de 2px topo/baixo
+                path += (i === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)} ` : `L ${x.toFixed(2)} ${y.toFixed(2)} `);
+            });
+            return `<svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${path}" stroke="${color}" stroke-width="2" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        }
+
+        function createCardHTML(asset, data, loading = false, holding = { qty: 0, avg: 0 }, valor = 0) {
             if (loading) return `<div class="card"><div class="card-header"><span class="ticker">${asset.id}</span></div><div class="price-container"><div class="price" style="opacity:0.3">---</div></div></div>`;
             if (!data) return `<div class="card"><div class="card-header"><span class="ticker">${asset.id}</span></div><div class="name" style="color:var(--down-color);">Sem dados</div></div>`;
-            
+
             const isUp = data.change >= 0;
             const badgeClass = isUp ? 'up' : 'down';
             const sign = isUp ? '+' : '';
-            const color = isUp ? '#34C759' : '#FF3B30';
-            
-            let priceHtml = data.displayValue ? data.displayValue : `${data.symbol} ${data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            let tickerName = asset.id === 'BTC' ? 'BTC (Global)' : asset.id;
 
-            let path = "M 0 25 "; let y = 25;
-            for(let i=1; i<=10; i++) {
-                const randomMove = (Math.random() * 10) - (isUp ? 2 : 8);
-                y = y + (isUp ? -Math.abs(randomMove) + 2 : Math.abs(randomMove) - 2); 
-                y = Math.max(0, Math.min(30, y));
-                path += `L ${i*10} ${y} `;
-            }
-            const sparkline = `<svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><path d="${path}" stroke="${color}" stroke-width="2" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            const priceHtml = data.displayValue ? data.displayValue : `${data.symbol} ${data.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const tickerName = asset.id === 'BTC' ? 'BTC (Global)' : asset.id;
+
+            const sparkline = buildSparkline(asset.id, isUp);
 
             let holdingHtml = '';
-            if (qty > 0) {
+            if (holding.qty > 0) {
                 holdingHtml = `
                 <div class="holding-info">
-                    <div>Qtd: ${qty}</div>
-                    <div class="holding-value">R$ ${totalValue.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                    <div>Qtd: ${holding.qty}</div>
+                    <div class="holding-value">R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>`;
+                if (holding.avg > 0) {
+                    const custo = holding.qty * holding.avg;
+                    const lucro = valor - custo;
+                    const pct = custo > 0 ? (lucro / custo) * 100 : 0;
+                    const up = lucro >= 0;
+                    holdingHtml += `<div class="pl-line" style="color:${up ? 'var(--up-color)' : 'var(--down-color)'}">${up ? '+' : ''}R$ ${lucro.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${up ? '+' : ''}${pct.toFixed(2)}%)</div>`;
+                }
             }
 
             return `
@@ -419,41 +581,156 @@
             </div>`;
         }
 
+        // ---------- DETALHE + GRÁFICO ----------
         function openDetail(asset, currentData) {
             currentDetailAsset = asset;
+            currentDetailData = currentData;
             document.getElementById('detail-view').classList.add('active');
             document.getElementById('detail-ticker').innerText = asset.id;
             document.getElementById('detail-name').innerText = asset.name;
-            
-            let displayPrice = currentData.price.toLocaleString('pt-BR', {style: 'currency', currency: asset.id === 'BTC' ? 'USD' : 'BRL'});
-            if(asset.id === 'BTC') displayPrice = displayPrice.replace('US$', 'USD ');
-            
+
+            let displayPrice = currentData.price.toLocaleString('pt-BR', { style: 'currency', currency: asset.id === 'BTC' ? 'USD' : 'BRL' });
+            if (asset.id === 'BTC') displayPrice = displayPrice.replace('US$', 'USD ');
             document.getElementById('detail-price').innerText = displayPrice;
+
             const isUp = currentData.change >= 0;
             const changeElem = document.getElementById('detail-change');
             changeElem.innerText = `${isUp ? '+' : ''}${currentData.change.toFixed(2)}%`;
-            changeElem.style.color = isUp ? '#34C759' : '#FF3B30';
+            changeElem.style.color = isUp ? 'var(--up-color)' : 'var(--down-color)';
 
-            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.period-btn')[0].classList.add('active');
-            loadChart('1d');
+            const btns = document.querySelectorAll('.period-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            // Câmbio/cripto: 1D intradiário não vem desta fonte; abre em 1M.
+            const startPeriod = (asset.type === 'currency' || asset.type === 'crypto') ? '1mo' : '1d';
+            const startBtn = Array.from(btns).find(b => b.dataset.period === startPeriod) || btns[0];
+            startBtn.classList.add('active');
+            loadChart(startPeriod);
         }
 
         function closeDetail() { document.getElementById('detail-view').classList.remove('active'); }
-        function changePeriod(period) {
+
+        function changePeriod(btn, period) {
             document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            btn.classList.add('active');
             loadChart(period);
         }
 
         async function loadChart(range) {
-            const ctx = document.getElementById('assetChart').getContext('2d');
             const loader = document.getElementById('chart-loading');
-            if (myChart) myChart.destroy();
+            if (myChart) { myChart.destroy(); myChart = null; }
             loader.style.display = 'block';
+            loader.innerText = "Carregando...";
+
+            const asset = currentDetailAsset;
+            let points = null; // [{t: label, v: valor}]
+
             try {
-                loader.innerText = "Gráficos de volta em breve.";
-            } catch (e) { console.error(e); }
+                if (asset.type === 'stock' || asset.type === 'index') {
+                    points = await fetchStockSeries(asset, range);
+                } else {
+                    points = await fetchCoinSeries(asset, range);
+                }
+            } catch (e) {
+                console.error("Erro ao carregar gráfico:", e);
+            }
+
+            if (!points || points.length < 2) {
+                loader.style.display = 'block';
+                loader.innerText = (asset.type === 'currency' || asset.type === 'crypto') && range === '1d'
+                    ? "Intradiário indisponível para câmbio/cripto. Use 5D ou mais."
+                    : "Histórico indisponível para este período.";
+                return;
+            }
+
+            loader.style.display = 'none';
+            drawChart(points, currentDetailData.change >= 0, asset);
+        }
+
+        async function fetchStockSeries(asset, range) {
+            const ticker = asset.id === 'IBOV' ? '^BVSP' : asset.id;
+            const intervalMap = { '1d': '15m', '5d': '60m', '1mo': '1d', '1y': '1d' };
+            const interval = intervalMap[range] || '1d';
+            const url = `https://brapi.dev/api/quote/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&token=${getToken()}`;
+            const r = await fetch(url);
+            if (!r.ok) return null;
+            const dados = await r.json();
+            const hist = dados.results && dados.results[0] && dados.results[0].historicalDataPrice;
+            if (!Array.isArray(hist)) return null;
+            return hist
+                .filter(p => p.close != null)
+                .map(p => ({ t: formatLabel(p.date * 1000, range), v: p.close }));
+        }
+
+        async function fetchCoinSeries(asset, range) {
+            // AwesomeAPI: histórico diário. 1D não tem intradiário aqui.
+            const pair = asset.id === 'USD' ? 'USD-BRL' : 'BTC-USD';
+            const daysMap = { '1d': 0, '5d': 5, '1mo': 30, '1y': 360 };
+            const days = daysMap[range];
+            if (!days) return null;
+            const r = await fetch(`https://economia.awesomeapi.com.br/json/daily/${pair}/${days}`);
+            if (!r.ok) return null;
+            const arr = await r.json();
+            if (!Array.isArray(arr)) return null;
+            return arr
+                .map(d => ({ t: formatLabel(parseInt(d.timestamp, 10) * 1000, range), v: parseFloat(d.bid) }))
+                .reverse();
+        }
+
+        function formatLabel(ms, range) {
+            const d = new Date(ms);
+            if (range === '1d') return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        }
+
+        function drawChart(points, isUp, asset) {
+            const ctx = document.getElementById('assetChart').getContext('2d');
+            const color = isUp ? '#34C759' : '#FF3B30';
+            const labels = points.map(p => p.t);
+            const values = points.map(p => p.v);
+
+            const grad = ctx.createLinearGradient(0, 0, 0, 320);
+            grad.addColorStop(0, isUp ? 'rgba(52,199,89,0.25)' : 'rgba(255,59,48,0.25)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+            const isCripto = asset.id === 'BTC';
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        borderColor: color,
+                        backgroundColor: grad,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.25,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        pointHoverBackgroundColor: color
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (c) => c.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: isCripto ? 'USD' : 'BRL' })
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 6, color: '#8E8E93', font: { size: 10 } }, grid: { display: false } },
+                        y: {
+                            position: 'right',
+                            ticks: { color: '#8E8E93', font: { size: 10 }, maxTicksLimit: 5 },
+                            grid: { color: 'rgba(128,128,128,0.1)' }
+                        }
+                    }
+                }
+            });
         }
     </script>
 </body>

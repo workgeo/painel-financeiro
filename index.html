@@ -125,6 +125,15 @@
         .p-field { display: flex; flex-direction: column; align-items: flex-end; }
         .p-field span { font-size: 9px; color: var(--text-secondary); margin-bottom: 2px; }
         .p-input { width: 78px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-soft); font-size: 15px; background: var(--bg-color); color: var(--text-primary); text-align: right; box-sizing: border-box; }
+        .p-left { display: flex; align-items: center; gap: 10px; }
+        .remove-btn { background: var(--down-bg); color: var(--down-color); border: none; width: 26px; height: 26px; min-width: 26px; border-radius: 50%; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .add-stock-box { background: var(--card-bg); border-radius: 14px; padding: 16px; margin-top: 6px; box-shadow: var(--shadow); }
+        .add-stock-box h3 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; }
+        .add-stock-row { display: flex; gap: 8px; }
+        .add-stock-row .settings-input { flex: 1; }
+        .add-btn { background: var(--accent-color); color: #fff; border: none; border-radius: 8px; padding: 0 16px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .add-stock-msg { font-size: 12px; margin-top: 8px; color: var(--text-secondary); min-height: 14px; line-height: 1.4; }
+        .add-stock-msg.err { color: var(--down-color); }
         .detail-header { padding: 20px; display: flex; align-items: center; justify-content: space-between; }
         .close-btn { background: rgba(128,128,128,0.2); border: none; width: 32px; height: 32px; border-radius: 50%; color: var(--text-primary); font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         .detail-info { text-align: center; }
@@ -225,16 +234,39 @@
             del(k) { try { localStorage.removeItem(k); } catch (e) { delete memStore[k]; } }
         };
 
-        const assets = [
+        // Ativos fixos (vêm de APIs específicas e não são editáveis)
+        const CORE_ASSETS = [
             { id: 'USD', type: 'currency', name: 'Dólar Comercial' },
             { id: 'BTC', type: 'crypto', name: 'Bitcoin' },
-            { id: 'IBOV', type: 'index', name: 'Ibovespa' },
-            { id: 'BBAS3', type: 'stock', name: 'Banco do Brasil' },
-            { id: 'BBDC3', type: 'stock', name: 'Bradesco ON' },
-            { id: 'JBSS32', type: 'stock', name: 'JBS S.A.' },
-            { id: 'SBSP3', type: 'stock', name: 'Sabesp' },
-            { id: 'WEGE3', type: 'stock', name: 'WEG S.A.' }
+            { id: 'IBOV', type: 'index', name: 'Ibovespa' }
         ];
+        // Ações sugeridas na primeira vez. O usuário pode adicionar/remover livremente.
+        const DEFAULT_STOCKS = [
+            { id: 'BBAS3', name: 'Banco do Brasil' },
+            { id: 'BBDC3', name: 'Bradesco ON' },
+            { id: 'JBSS32', name: 'JBS N.V. (BDR)' },
+            { id: 'SBSP3', name: 'Sabesp' },
+            { id: 'WEGE3', name: 'WEG S.A.' }
+        ];
+        let userStocks = [];   // ações do usuário: { id, name }
+        let assets = [];       // CORE_ASSETS + userStocks (recalculado)
+
+        function rebuildAssets() {
+            assets = [...CORE_ASSETS, ...userStocks.map(s => ({ id: s.id, type: 'stock', name: s.name }))];
+        }
+        function saveStocks() { store.set('user_stocks', JSON.stringify(userStocks)); }
+        function loadStocks() {
+            const saved = store.get('user_stocks');
+            if (saved) {
+                try { userStocks = JSON.parse(saved); } catch (e) { userStocks = DEFAULT_STOCKS.map(s => ({ ...s })); }
+            } else {
+                userStocks = DEFAULT_STOCKS.map(s => ({ ...s }));
+            }
+            // Migração: JBSS3 (extinta em jun/2025) -> JBSS32 (BDR)
+            userStocks.forEach(s => { if (s.id === 'JBSS3') { s.id = 'JBSS32'; s.name = 'JBS N.V. (BDR)'; } });
+            saveStocks();
+            rebuildAssets();
+        }
 
         const news = [
             { source: 'InfoMoney', title: 'Acompanhe as movimentações do mercado' },
@@ -272,6 +304,7 @@
         function unlockApp() {
             document.getElementById('lock-screen').classList.add('hidden');
             document.getElementById('app-content').classList.remove('hidden');
+            loadStocks();
             loadPortfolio();
             initApp();
         }
@@ -297,6 +330,10 @@
                     else if (v && typeof v === 'object') portfolio[id] = { qty: v.qty || 0, avg: v.avg || 0 };
                 });
             } catch (e) { console.error('Carteira inválida:', e); }
+            // Migração JBSS3 -> JBSS32 (JBS virou BDR em jun/2025). Quantidade preservada;
+            // o usuário deve revisar, pois a conversão foi de 1 BDR para cada 2 ações.
+            if (portfolio['JBSS3'] && !portfolio['JBSS32']) portfolio['JBSS32'] = portfolio['JBSS3'];
+            delete portfolio['JBSS3'];
         }
 
         function openPortfolio() {
@@ -322,12 +359,16 @@
             assets.forEach(asset => {
                 if (asset.id === 'IBOV') return;
                 const p = portfolio[asset.id] || { qty: 0, avg: 0 };
+                const isStock = asset.type === 'stock';
                 const item = document.createElement('div');
                 item.className = 'portfolio-item';
                 item.innerHTML = `
-                    <div>
-                        <div style="font-weight:700;">${asset.id}</div>
-                        <div style="font-size:12px; color:var(--text-secondary);">${asset.name}</div>
+                    <div class="p-left">
+                        ${isStock ? `<button class="remove-btn" onclick="removeStock('${asset.id}')" title="Remover">✕</button>` : ''}
+                        <div>
+                            <div style="font-weight:700;">${asset.id}</div>
+                            <div style="font-size:12px; color:var(--text-secondary);">${asset.name}</div>
+                        </div>
                     </div>
                     <div class="p-fields">
                         <div class="p-field">
@@ -342,24 +383,25 @@
                 `;
                 list.appendChild(item);
             });
+
+            // Caixa para adicionar nova ação (digita o ticker; o nome vem da brapi)
+            const addBox = document.createElement('div');
+            addBox.className = 'add-stock-box';
+            addBox.innerHTML = `
+                <h3>Adicionar ação</h3>
+                <div class="add-stock-row">
+                    <input type="text" class="settings-input" id="new-stock" placeholder="Ticker (ex.: PETR4, VALE3)" autocapitalize="characters" autocomplete="off">
+                    <button class="add-btn" onclick="addStock()">Adicionar</button>
+                </div>
+                <div id="add-stock-msg" class="add-stock-msg"></div>
+            `;
+            list.appendChild(addBox);
+
             document.getElementById('portfolio-modal').classList.add('active');
         }
 
-        function closePortfolio() { document.getElementById('portfolio-modal').classList.remove('active'); }
-
-        async function savePortfolio() {
-            // Token
-            const tokenInput = document.getElementById('cfg-token');
-            if (tokenInput) {
-                const t = tokenInput.value.trim();
-                if (t) store.set('brapi_token', t); else store.del('brapi_token');
-            }
-            // Senha
-            const pwdInput = document.getElementById('cfg-pwd');
-            if (pwdInput && pwdInput.value.trim()) {
-                store.set('pwd_hash', await sha256(pwdInput.value.trim()));
-            }
-            // Carteira
+        // Lê os campos QTD/PM da tela para a memória (preserva edições ao re-renderizar)
+        function syncInputsToPortfolio() {
             assets.forEach(asset => {
                 if (asset.id === 'IBOV') return;
                 const qEl = document.getElementById(`qty-${asset.id}`);
@@ -367,12 +409,65 @@
                 if (!qEl) return;
                 const qty = parseFloat(qEl.value);
                 const avg = parseFloat(aEl.value);
-                if (!isNaN(qty) && qty > 0) {
-                    portfolio[asset.id] = { qty: qty, avg: (!isNaN(avg) && avg > 0) ? avg : 0 };
-                } else {
-                    delete portfolio[asset.id];
-                }
+                if (!isNaN(qty) && qty > 0) portfolio[asset.id] = { qty, avg: (!isNaN(avg) && avg > 0) ? avg : 0 };
+                else delete portfolio[asset.id];
             });
+        }
+
+        function persistTokenField() {
+            const t = document.getElementById('cfg-token');
+            if (t) { const v = t.value.trim(); if (v) store.set('brapi_token', v); else store.del('brapi_token'); }
+        }
+
+        async function addStock() {
+            const input = document.getElementById('new-stock');
+            const msg = document.getElementById('add-stock-msg');
+            persistTokenField();
+            let ticker = (input.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (!ticker) { msg.textContent = 'Digite um ticker válido.'; msg.className = 'add-stock-msg err'; return; }
+            if (assets.some(a => a.id === ticker)) { msg.textContent = ticker + ' já está na lista.'; msg.className = 'add-stock-msg err'; return; }
+            if (!getToken()) { msg.textContent = 'Configure seu token da brapi acima e salve antes de adicionar.'; msg.className = 'add-stock-msg err'; return; }
+            msg.textContent = 'Verificando ' + ticker + '…'; msg.className = 'add-stock-msg';
+            try {
+                const resp = await brapiQuote([ticker], false);
+                if (!resp.results || !resp.results.length) {
+                    msg.textContent = resp.error ? ('Erro: ' + resp.error) : (ticker + ' não encontrado na B3.');
+                    msg.className = 'add-stock-msg err';
+                    return;
+                }
+                const r = resp.results[0];
+                syncInputsToPortfolio();
+                userStocks.push({ id: ticker, name: r.longName || r.shortName || ticker });
+                saveStocks(); rebuildAssets();
+                input.value = '';
+                openPortfolio();
+                fetchData();
+            } catch (e) {
+                msg.textContent = 'Falha ao verificar. Confira sua conexão e o token.';
+                msg.className = 'add-stock-msg err';
+            }
+        }
+
+        function removeStock(id) {
+            persistTokenField();
+            syncInputsToPortfolio();
+            userStocks = userStocks.filter(s => s.id !== id);
+            delete portfolio[id];
+            saveStocks(); rebuildAssets();
+            store.set('user_portfolio', JSON.stringify(portfolio));
+            openPortfolio();
+            fetchData();
+        }
+
+        function closePortfolio() { document.getElementById('portfolio-modal').classList.remove('active'); }
+
+        async function savePortfolio() {
+            persistTokenField();
+            const pwdInput = document.getElementById('cfg-pwd');
+            if (pwdInput && pwdInput.value.trim()) {
+                store.set('pwd_hash', await sha256(pwdInput.value.trim()));
+            }
+            syncInputsToPortfolio();
             store.set('user_portfolio', JSON.stringify(portfolio));
             closePortfolio();
             fetchData();
@@ -399,6 +494,20 @@
         }
 
         // ---------- FETCH ----------
+        // Busca cotações (e opcionalmente histórico) na brapi. Vírgulas LITERAIS na URL.
+        async function brapiQuote(list, withHistory) {
+            const path = list.join(',').replace(/\^/g, '%5E');
+            const hist = withHistory ? '&range=1mo&interval=1d' : '';
+            const url = `https://brapi.dev/api/quote/${path}?token=${getToken()}${hist}`;
+            const r = await fetch(url);
+            let body = null;
+            try { body = await r.json(); } catch (e) {}
+            if (!r.ok || (body && body.error)) {
+                return { results: null, error: (body && body.message) ? body.message : ('HTTP ' + r.status) };
+            }
+            return { results: (body && body.results) ? body.results : [], error: '' };
+        }
+
         async function fetchData() {
             const updateLabel = document.getElementById('last-update');
             updateLabel.innerText = "Atualizando...";
@@ -422,48 +531,39 @@
                 if (Array.isArray(btcH) && btcH.length) historyCache['BTC'] = btcH.map(d => parseFloat(d.bid)).reverse();
             } catch (e) { console.error("Erro histórico moedas:", e); }
 
-            // 2. Ações + índice (brapi).
-            //    BUG corrigido: antes a lista de tickers passava por encodeURIComponent,
-            //    que troca "," por "%2C" e quebra a busca de vários ativos de uma vez.
-            //    Agora as vírgulas são literais (só o "^" do índice é escapado).
+            // 2. Ações + índice (brapi)
             let apiError = '';
             const stockIds = assets.filter(a => a.type === 'stock').map(a => a.id);
             const allTickers = [...stockIds, '^BVSP'];
 
-            async function brapiFetch(list, withHistory) {
-                const path = list.join(',').replace(/\^/g, '%5E');
-                const hist = withHistory ? '&range=1mo&interval=1d' : '';
-                const url = `https://brapi.dev/api/quote/${path}?token=${getToken()}${hist}`;
-                const r = await fetch(url);
-                let body = null;
-                try { body = await r.json(); } catch (e) {}
-                if (!r.ok || (body && body.error)) {
-                    apiError = (body && body.message) ? body.message : ('HTTP ' + r.status);
-                    return null;
-                }
-                return (body && body.results) ? body.results : null;
-            }
-
             try {
-                let results = await brapiFetch(allTickers, true);            // cotação + histórico
-                if (!results) results = await brapiFetch(allTickers, false); // só cotação
-                if (!results) {                                              // último recurso: 1 a 1
-                    results = [];
+                let resp = await brapiQuote(allTickers, true);              // cotação + histórico
+                if (!resp.results) resp = await brapiQuote(allTickers, false); // só cotação
+                if (!resp.results) {                                       // último recurso: 1 a 1
+                    const acc = [];
                     for (const t of allTickers) {
-                        const one = await brapiFetch([t], false);
-                        if (one) results.push(...one);
+                        const one = await brapiQuote([t], false);
+                        if (one.results) acc.push(...one.results);
+                        else if (one.error) apiError = one.error;
                     }
+                    resp = { results: acc, error: acc.length ? '' : apiError };
                 }
-                if (results && results.length) {
-                    apiError = '';
-                    results.forEach(res => {
-                        const id = (res.symbol === '^BVSP') ? 'IBOV' : res.symbol;
-                        stockMap[id] = res;
-                        if (Array.isArray(res.historicalDataPrice) && res.historicalDataPrice.length) {
-                            historyCache[id] = res.historicalDataPrice.map(p => p.close).filter(v => v != null);
-                        }
-                    });
-                }
+                apiError = resp.error || '';
+                let namesChanged = false;
+                (resp.results || []).forEach(res => {
+                    const id = (res.symbol === '^BVSP') ? 'IBOV' : res.symbol;
+                    stockMap[id] = res;
+                    if (Array.isArray(res.historicalDataPrice) && res.historicalDataPrice.length) {
+                        historyCache[id] = res.historicalDataPrice.map(p => p.close).filter(v => v != null);
+                    }
+                    // Preenche o nome real da ação quando ainda estiver provisório (= ticker)
+                    const us = userStocks.find(s => s.id === id);
+                    if (us && (!us.name || us.name === us.id) && (res.longName || res.shortName)) {
+                        us.name = res.longName || res.shortName;
+                        namesChanged = true;
+                    }
+                });
+                if (namesChanged) { saveStocks(); rebuildAssets(); }
             } catch (e) {
                 console.error("Erro ações:", e);
                 apiError = 'sem conexão com a brapi';

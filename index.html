@@ -207,18 +207,13 @@
   <script>
         /* ===================================================================
            CONFIGURAÇÃO
-           -------------------------------------------------------------------
-           SENHA: não fica mais em texto puro. Guardamos apenas o hash SHA-256.
-           O hash abaixo corresponde à senha padrão "1234". Você pode trocar a
-           senha dentro do app (Carteira > Ajustes) sem editar este arquivo.
-
-           TOKEN BRAPI: o ideal seria mantê-lo num backend (a própria brapi
-           recomenda não expor no frontend). Como este app é single-file, o
-           token fica configurável em Ajustes e guardado localmente no aparelho.
-           O valor abaixo é só um fallback inicial.
+           - SENHA: guardada só como hash SHA-256 (padrão "1234"). Troque em
+             Carteira > Ajustes, sem editar este arquivo.
+           - TOKEN BRAPI: configure o seu em Carteira > Ajustes. Fica salvo só
+             neste aparelho (a brapi recomenda não expor token no frontend).
         =================================================================== */
         const DEFAULT_PWD_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4'; // "1234"
-        const DEFAULT_BRAPI_TOKEN = '4cC5ecuq416RSfKLHm3aRX';
+        const DEFAULT_BRAPI_TOKEN = ''; // sem token padrão — use o seu em Ajustes
         const LOGIN_VALIDITY_DAYS = 7;
 
         // Armazenamento resiliente: usa localStorage quando disponível,
@@ -252,7 +247,6 @@
         let currentDetailData = null;
         let myChart = null;
         let portfolio = {};          // { id: { qty, avg } }  (avg em R$)
-        let priceCache = {};         // { id: priceBRL }
         const historyCache = {};     // { id: [closes...] } para sparkline (período 1M)
 
         function getToken() { return store.get('brapi_token') || DEFAULT_BRAPI_TOKEN; }
@@ -328,7 +322,6 @@
             assets.forEach(asset => {
                 if (asset.id === 'IBOV') return;
                 const p = portfolio[asset.id] || { qty: 0, avg: 0 };
-                const moeda = (asset.id === 'BTC') ? 'PM R$' : 'PM R$';
                 const item = document.createElement('div');
                 item.className = 'portfolio-item';
                 item.innerHTML = `
@@ -342,7 +335,7 @@
                             <input type="number" class="p-input" id="qty-${asset.id}" value="${p.qty || ''}" step="any" placeholder="0">
                         </div>
                         <div class="p-field">
-                            <span>${moeda}</span>
+                            <span>PM R$</span>
                             <input type="number" class="p-input" id="avg-${asset.id}" value="${p.avg || ''}" step="any" placeholder="0,00">
                         </div>
                     </div>
@@ -495,7 +488,6 @@
         function renderCards(coinsData, stockMap) {
             const container = document.getElementById('cards-container');
             container.innerHTML = '';
-            priceCache = {};
 
             let totalAtual = 0, totalCusto = 0;
 
@@ -525,8 +517,6 @@
                         data = { price: priceBRL, change: s.regularMarketChangePercent || 0, symbol: 'R$' };
                     }
                 }
-
-                priceCache[asset.id] = priceBRL;
 
                 const p = portfolio[asset.id] || { qty: 0, avg: 0 };
                 const valor = p.qty * priceBRL;
